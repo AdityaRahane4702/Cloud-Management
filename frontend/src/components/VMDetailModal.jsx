@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Cpu, Database, HardDrive, Wifi, Trash2, Clock, Activity } from 'lucide-react';
+import { X, Cpu, Database, HardDrive, Wifi, Trash2, Clock, Activity, RefreshCw } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
-export default function VMDetailModal({ vm, onClose, onDeleteVM }) {
+export default function VMDetailModal({ vm, onClose, onDeleteVM, onReRegisterVM }) {
   const [history, setHistory] = useState([]);
   const [timeRange, setTimeRange] = useState('1h');
   const [loading, setLoading] = useState(true);
+  const isDeregistered = vm?.is_deregistered || vm?.status === 'DEREGISTERED';
 
   useEffect(() => {
     if (!vm) return;
@@ -53,8 +54,8 @@ export default function VMDetailModal({ vm, onClose, onDeleteVM }) {
               <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff' }}>
                 {vm.hostname}
               </h2>
-              <span className={`badge badge-${(vm.status || 'ONLINE').toLowerCase()}`}>
-                {vm.status || 'ONLINE'}
+              <span className={`badge badge-${isDeregistered ? 'offline' : (vm.status || 'ONLINE').toLowerCase()}`}>
+                {isDeregistered ? 'DEREGISTERED' : vm.status || 'ONLINE'}
               </span>
             </div>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
@@ -63,15 +64,29 @@ export default function VMDetailModal({ vm, onClose, onDeleteVM }) {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <button 
-              onClick={() => onDeleteVM(vm.vm_id)}
-              className="btn-secondary"
-              style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
-              title="Deregister VM"
-            >
-              <Trash2 size={16} />
-              <span>Deregister</span>
-            </button>
+            {isDeregistered ? (
+              <button 
+                onClick={() => {
+                  if (onReRegisterVM) onReRegisterVM(vm.vm_id);
+                }}
+                className="btn-secondary"
+                style={{ color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.4)' }}
+                title="Re-register this VM"
+              >
+                <RefreshCw size={16} />
+                <span>Re-register VM</span>
+              </button>
+            ) : (
+              <button 
+                onClick={() => onDeleteVM(vm.vm_id)}
+                className="btn-secondary"
+                style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                title="Deregister VM"
+              >
+                <Trash2 size={16} />
+                <span>Deregister</span>
+              </button>
+            )}
 
             <button 
               onClick={onClose}

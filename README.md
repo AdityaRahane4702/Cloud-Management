@@ -75,7 +75,7 @@ The proposed system can be used by:
 ```
 
 ### Components
-1. **Python Monitoring Agent (`agent/agent.py`)**: Lightweight background service using `psutil` and `requests`. Collects CPU %, RAM %, Disk %, Network I/O, Uptime, Hostname, and OS info. Includes `agent/simulator.py` for simulating multi-VM environments.
+1. **Python Monitoring Agent (`agent/agent.py`)**: Lightweight background service using `psutil` and `requests`. Collects CPU %, RAM %, Disk %, Network I/O, Uptime, Hostname, and OS info.
 2. **Backend Server (`backend/`)**: Node.js & Express REST API server. Handles VM registration, metric ingestion, time-series retrieval, and threshold evaluation.
 3. **Database (`database/schema.sql`)**: PostgreSQL relational storage for `vms`, `metrics`, `alert_rules`, and `alerts`. Includes automatic pool setup and schema migration.
 4. **Web Dashboard (`frontend/`)**: React.js SPA built with Vite. Displays real-time VM cards, KPI overview cards, interactive Recharts time-series graphs, alert drawer, and threshold sliders.
@@ -113,7 +113,7 @@ npm run setup
 ```bash
 cd backend
 npm run dev
-# Running on http://localhost:5000
+# Running on http://localhost:5005
 ```
 
 ### Step 3: Start React Web Dashboard
@@ -124,13 +124,10 @@ npm run dev
 # Running on http://localhost:5173
 ```
 
-### Step 4: Run Python Monitoring Agent or Multi-VM Simulator
+### Step 4: Run Python Monitoring Agent
 In a new terminal:
 ```bash
-# Option A: Run Multi-VM Simulator (Simulates 4 VMs with dynamic workload spikes)
-python3 agent/simulator.py
-
-# Option B: Run Real System Agent on Current Host
+# Run Real System Agent on any Target Machine
 python3 agent/agent.py
 ```
 

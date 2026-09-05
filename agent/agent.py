@@ -102,7 +102,10 @@ def main():
             payload, prev_net = collect_metrics(vm_id, args.hostname, os_info, prev_net)
             
             response = requests.post(server_url, json=payload, timeout=5)
-            if response.status_code in (200, 201):
+            if response.status_code == 410 or (response.headers.get('content-type', '').startswith('application/json') and response.json().get('deregistered')):
+                logging.critical(f"⛔ VM '{vm_id}' was deregistered by central dashboard administrator. Terminating agent process.")
+                sys.exit(0)
+            elif response.status_code in (200, 201):
                 logging.info(
                     f"Metrics sent | CPU: {payload['cpu_usage']}% | RAM: {payload['memory_usage']}% | "
                     f"Disk: {payload['disk_usage']}% | Uptime: {payload['uptime_seconds']}s"

@@ -7,7 +7,7 @@ export default function Navbar({ overview, isAutoRefresh, setIsAutoRefresh, onMa
   return (
     <header className="glass-panel" style={{ padding: '1rem 1.5rem', marginBottom: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        
+
         {/* Brand Logo & Title */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{
@@ -33,7 +33,7 @@ export default function Navbar({ overview, isAutoRefresh, setIsAutoRefresh, onMa
 
         {/* Action Controls & Health State */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          
+
           {/* Active Alerts Badge */}
           {activeAlerts > 0 ? (
             <div className="badge badge-critical" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8125rem' }}>
@@ -48,7 +48,7 @@ export default function Navbar({ overview, isAutoRefresh, setIsAutoRefresh, onMa
           )}
 
           {/* Auto Refresh Toggle */}
-          <button 
+          <button
             onClick={() => setIsAutoRefresh(!isAutoRefresh)}
             className="btn-secondary"
             style={{ fontSize: '0.8125rem', padding: '0.4rem 0.8rem' }}
@@ -58,7 +58,7 @@ export default function Navbar({ overview, isAutoRefresh, setIsAutoRefresh, onMa
           </button>
 
           {/* Manual Refresh Button */}
-          <button 
+          <button
             onClick={onManualRefresh}
             className="btn-secondary"
             style={{ padding: '0.4rem 0.6rem' }}

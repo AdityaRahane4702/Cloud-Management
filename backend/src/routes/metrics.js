@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getPool, getIsPostgresAvailable, getInMemoryStore } = require('../config/db');
+const { getPool, getIsPostgresAvailable, getInMemoryStore, getDeregisteredVms } = require('../config/db');
 const { evaluateMetrics } = require('../services/alertEngine');
 
 // POST /api/metrics - Ingest metrics from Python Monitoring Agent
@@ -27,6 +27,16 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required metric fields (vm_id, cpu_usage, memory_usage, disk_usage)' });
     }
 
+    // Check if this VM or all VMs were deregistered by dashboard administrator
+    const deregistered = getDeregisteredVms();
+    if (deregistered.has(vm_id) || deregistered.has('*')) {
+      return res.status(410).json({
+        success: false,
+        deregistered: true,
+        message: `VM '${vm_id}' has been deregistered by dashboard administrator. Agent terminating.`
+      });
+    }
+
     const metricPayload = {
       vm_id,
       hostname: hostname || 'unknown-host',
@@ -51,12 +61,13 @@ router.post('/', async (req, res) => {
       const pool = getPool();
       // 1. Upsert VM registration
       await pool.query(
-        `INSERT INTO vms (vm_id, hostname, ip_address, os_info, last_seen)
-         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+        `INSERT INTO vms (vm_id, hostname, ip_address, os_info, last_seen, is_deregistered)
+         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, FALSE)
          ON CONFLICT (vm_id) DO UPDATE 
          SET hostname = EXCLUDED.hostname,
              ip_address = EXCLUDED.ip_address,
              os_info = EXCLUDED.os_info,
+             is_deregistered = FALSE,
              last_seen = CURRENT_TIMESTAMP`,
         [metricPayload.vm_id, metricPayload.hostname, metricPayload.ip_address, metricPayload.os_info]
       );

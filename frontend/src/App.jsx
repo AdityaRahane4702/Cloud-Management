@@ -3,7 +3,6 @@ import Navbar from './components/Navbar';
 import VMCard from './components/VMCard';
 import VMDetailModal from './components/VMDetailModal';
 import AlertsPanel from './components/AlertsPanel';
-import SimulatorControl from './components/SimulatorControl';
 import { Server, Activity, ShieldAlert, Cpu, Database, HardDrive, Search, Filter, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 export default function App() {
@@ -49,6 +48,19 @@ export default function App() {
     }
   };
 
+  const handleReRegisterVM = async (vmId) => {
+    try {
+      const res = await fetch(`/api/vms/${vmId}/register`, { method: 'POST' });
+      const json = await res.json();
+      if (json.success) {
+        if (selectedVm) setSelectedVm(prev => prev ? { ...prev, status: 'OFFLINE', is_deregistered: false } : null);
+        fetchAllData();
+      }
+    } catch (err) {
+      console.error('Error re-registering VM:', err);
+    }
+  };
+
   const handleDeleteVM = async (vmId) => {
     if (!confirm(`Are you sure you want to deregister VM '${vmId}'?`)) return;
     try {
@@ -65,20 +77,20 @@ export default function App() {
 
   // Filter VMs by search text & status pill
   const filteredVMs = vms.filter(vm => {
-    const matchesSearch = 
+    const matchesSearch =
       (vm.hostname || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (vm.vm_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (vm.ip_address || '').includes(searchQuery);
-    
-    const matchesStatus = statusFilter === 'ALL' || (vm.status || 'ONLINE') === statusFilter;
+
+    const matchesStatus = statusFilter === 'ALL' || (vm.is_deregistered && statusFilter === 'DEREGISTERED') || (vm.status || 'ONLINE') === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
   return (
     <div className="app-container">
-      
+
       {/* Top Navbar */}
-      <Navbar 
+      <Navbar
         overview={overview}
         isAutoRefresh={isAutoRefresh}
         setIsAutoRefresh={setIsAutoRefresh}
@@ -86,12 +98,9 @@ export default function App() {
         loading={loading}
       />
 
-      {/* Simulator Quick Command Bar */}
-      <SimulatorControl onRefresh={fetchAllData} />
-
       {/* KPI Overview Grid */}
       <div className="summary-grid">
-        
+
         {/* Total VMs */}
         <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#6366f1', padding: '0.75rem', borderRadius: '12px' }}>
@@ -156,7 +165,7 @@ export default function App() {
 
       {/* Main Tabs Navigation Header */}
       <div className="tabs-header">
-        <button 
+        <button
           className={`tab-btn ${activeTab === 'vms' ? 'active' : ''}`}
           onClick={() => setActiveTab('vms')}
         >
@@ -164,7 +173,7 @@ export default function App() {
           <span>Virtual Machines ({vms.length})</span>
         </button>
 
-        <button 
+        <button
           className={`tab-btn ${activeTab === 'alerts' ? 'active' : ''}`}
           onClick={() => setActiveTab('alerts')}
         >
@@ -178,13 +187,13 @@ export default function App() {
         <>
           {/* Controls Bar: Search & Status Filter */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
-            
+
             {/* Search Input */}
             <div style={{ position: 'relative' }}>
               <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)' }} />
-              <input 
-                type="text" 
-                placeholder="Search hostname, VM ID or IP..." 
+              <input
+                type="text"
+                placeholder="Search hostname, VM ID or IP..."
                 className="search-input"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -193,7 +202,7 @@ export default function App() {
 
             {/* Status Filter Buttons */}
             <div style={{ display: 'flex', gap: '0.4rem', background: 'rgba(255,255,255,0.03)', padding: '0.25rem', borderRadius: '10px' }}>
-              {['ALL', 'ONLINE', 'WARNING', 'CRITICAL', 'OFFLINE'].map(st => (
+              {['ALL', 'ONLINE', 'WARNING', 'CRITICAL', 'OFFLINE', 'DEREGISTERED'].map(st => (
                 <button
                   key={st}
                   onClick={() => setStatusFilter(st)}
@@ -221,13 +230,13 @@ export default function App() {
               <Server size={48} color="var(--text-dim)" style={{ marginBottom: '1rem' }} />
               <h3 style={{ fontSize: '1.1rem', color: '#fff', marginBottom: '0.5rem' }}>No Virtual Machines Found</h3>
               <p style={{ fontSize: '0.875rem' }}>
-                Run the Python Agent (<code style={{ color: '#a855f7' }}>python3 agent/simulator.py</code> or <code style={{ color: '#a855f7' }}>python3 agent/agent.py</code>) to start posting VM telemetry.
+                Run the Python Agent on any machine (<code style={{ color: '#a855f7' }}>python3 agent/agent.py</code>) to start posting real-time VM telemetry.
               </p>
             </div>
           ) : (
             <div className="vm-grid">
               {filteredVMs.map(vm => (
-                <VMCard key={vm.vm_id} vm={vm} onSelectVM={(selected) => setSelectedVm(selected)} />
+                <VMCard key={vm.vm_id} vm={vm} onSelectVM={(selected) => setSelectedVm(selected)} onReRegisterVM={handleReRegisterVM} />
               ))}
             </div>
           )}
@@ -245,6 +254,7 @@ export default function App() {
           vm={selectedVm} 
           onClose={() => setSelectedVm(null)} 
           onDeleteVM={handleDeleteVM}
+          onReRegisterVM={handleReRegisterVM}
         />
       )}
 

@@ -78,10 +78,17 @@ function getIsPostgresAvailable() {
   return isPostgresAvailable;
 }
 
+const deregisteredVms = new Set();
+
+function getDeregisteredVms() {
+  return deregisteredVms;
+}
+
 module.exports = {
   initDbPool,
   getPool,
   getInMemoryStore,
   getIsPostgresAvailable,
+  getDeregisteredVms,
   dbConfig
 };

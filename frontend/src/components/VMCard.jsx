@@ -1,8 +1,9 @@
 import React from 'react';
-import { Cpu, HardDrive, Database, Wifi, ExternalLink, Clock } from 'lucide-react';
+import { Cpu, HardDrive, Database, Wifi, ExternalLink, Clock, RefreshCw } from 'lucide-react';
 
-export default function VMCard({ vm, onSelectVM }) {
+export default function VMCard({ vm, onSelectVM, onReRegisterVM }) {
   const status = vm.status || 'ONLINE';
+  const isDeregistered = vm.is_deregistered || status === 'DEREGISTERED';
   const cpu = parseFloat(vm.cpu_usage || 0);
   const mem = parseFloat(vm.memory_usage || 0);
   const disk = parseFloat(vm.disk_usage || 0);
@@ -36,7 +37,8 @@ export default function VMCard({ vm, onSelectVM }) {
       flexDirection: 'column',
       justify: 'space-between',
       transition: 'transform 0.2s ease, border-color 0.2s ease',
-      cursor: 'pointer'
+      cursor: 'pointer',
+      opacity: isDeregistered ? 0.65 : 1
     }}
     onClick={() => onSelectVM(vm)}
     onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.4)'}
@@ -53,9 +55,9 @@ export default function VMCard({ vm, onSelectVM }) {
               {vm.ip_address} • {vm.vm_id}
             </p>
           </div>
-          <span className={`badge badge-${status.toLowerCase()}`}>
-            <span className={`status-dot status-dot-${status.toLowerCase()}`}></span>
-            {status}
+          <span className={`badge badge-${isDeregistered ? 'offline' : status.toLowerCase()}`}>
+            <span className={`status-dot status-dot-${isDeregistered ? 'offline' : status.toLowerCase()}`}></span>
+            {isDeregistered ? 'DEREGISTERED' : status}
           </span>
         </div>
 
@@ -134,7 +136,7 @@ export default function VMCard({ vm, onSelectVM }) {
         </div>
       </div>
 
-      {/* Footer Info & Details Button */}
+      {/* Footer Info & Details / Re-register Buttons */}
       <div style={{
         marginTop: '1.25rem',
         paddingTop: '0.75rem',
@@ -154,17 +156,34 @@ export default function VMCard({ vm, onSelectVM }) {
           </span>
         </div>
 
-        <button 
-          className="btn-secondary" 
-          style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelectVM(vm);
-          }}
-        >
-          <span>Metrics</span>
-          <ExternalLink size={12} />
-        </button>
+        <div style={{ display: 'flex', gap: '0.4rem' }}>
+          {isDeregistered ? (
+            <button 
+              className="btn-secondary" 
+              style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.4)' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onReRegisterVM) onReRegisterVM(vm.vm_id);
+              }}
+              title="Re-register this VM to allow Python agent metrics again"
+            >
+              <RefreshCw size={12} />
+              <span>Re-register</span>
+            </button>
+          ) : (
+            <button 
+              className="btn-secondary" 
+              style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectVM(vm);
+              }}
+            >
+              <span>Metrics</span>
+              <ExternalLink size={12} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

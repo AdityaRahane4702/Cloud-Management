@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getPool, getIsPostgresAvailable, getInMemoryStore } = require('../config/db');
+const { getPool, getIsPostgresAvailable, getInMemoryStore, getDeregisteredVms } = require('../config/db');
 
 // GET /api/vms - List all registered VMs with their latest metric snapshot
 router.get('/', async (req, res) => {
@@ -94,21 +94,81 @@ router.get('/:vm_id', async (req, res) => {
   }
 });
 
-// DELETE /api/vms/:vm_id - Deregister a VM
-router.delete('/:vm_id', async (req, res) => {
+// POST /api/vms/:vm_id/register - Re-register a previously deregistered VM
+router.post('/:vm_id/register', async (req, res) => {
   const { vm_id } = req.params;
   try {
+    const deregistered = getDeregisteredVms();
+    deregistered.delete(vm_id);
+    deregistered.delete('*');
+
     const isPg = getIsPostgresAvailable();
     if (isPg) {
       const pool = getPool();
-      await pool.query('DELETE FROM vms WHERE vm_id = $1', [vm_id]);
+      await pool.query(
+        `UPDATE vms SET status = 'OFFLINE', is_deregistered = FALSE, last_seen = CURRENT_TIMESTAMP WHERE vm_id = $1`,
+        [vm_id]
+      );
     } else {
       const store = getInMemoryStore();
-      store.vms.delete(vm_id);
-      store.metrics = store.metrics.filter(m => m.vm_id !== vm_id);
-      store.alerts = store.alerts.filter(a => a.vm_id !== vm_id);
+      const vm = store.vms.get(vm_id);
+      if (vm) {
+        vm.status = 'OFFLINE';
+        vm.is_deregistered = false;
+      }
     }
-    return res.json({ success: true, message: `VM '${vm_id}' deleted successfully` });
+    return res.json({ success: true, message: `VM '${vm_id}' re-registered successfully. Ready to accept metrics.` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/vms - Clear/Purge all VMs, metrics, and alerts
+router.delete('/', async (req, res) => {
+  try {
+    const deregistered = getDeregisteredVms();
+    deregistered.add('*'); // Mark all agents to self-terminate
+
+    const isPg = getIsPostgresAvailable();
+    if (isPg) {
+      const pool = getPool();
+      await pool.query(`UPDATE vms SET status = 'DEREGISTERED', is_deregistered = TRUE`);
+    } else {
+      const store = getInMemoryStore();
+      store.vms.forEach(vm => {
+        vm.status = 'DEREGISTERED';
+        vm.is_deregistered = true;
+      });
+    }
+    return res.json({ success: true, message: 'All VMs marked as DEREGISTERED' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/vms/:vm_id - Mark VM as DEREGISTERED
+router.delete('/:vm_id', async (req, res) => {
+  const { vm_id } = req.params;
+  try {
+    const deregistered = getDeregisteredVms();
+    deregistered.add(vm_id); // Mark specific agent to self-terminate
+
+    const isPg = getIsPostgresAvailable();
+    if (isPg) {
+      const pool = getPool();
+      await pool.query(
+        `UPDATE vms SET status = 'DEREGISTERED', is_deregistered = TRUE WHERE vm_id = $1`,
+        [vm_id]
+      );
+    } else {
+      const store = getInMemoryStore();
+      const vm = store.vms.get(vm_id);
+      if (vm) {
+        vm.status = 'DEREGISTERED';
+        vm.is_deregistered = true;
+      }
+    }
+    return res.json({ success: true, message: `VM '${vm_id}' deregistered successfully` });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
