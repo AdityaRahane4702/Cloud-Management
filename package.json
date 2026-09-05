@@ -1,0 +1,12 @@
+{
+  "name": "cloud-vm-monitoring-dashboard",
+  "version": "1.0.0",
+  "description": "Cloud-Based Virtual Machine Monitoring Dashboard with Python Agent, Express REST API, PostgreSQL, and React Dashboard",
+  "scripts": {
+    "setup": "cd backend && npm install && cd ../frontend && npm install",
+    "backend": "cd backend && npm run dev",
+    "frontend": "cd frontend && npm run dev",
+    "agent": "python3 agent/agent.py",
+    "simulator": "python3 agent/simulator.py"
+  }
+}
