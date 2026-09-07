@@ -1,7 +1,7 @@
 import React from 'react';
-import { Cpu, HardDrive, Database, Wifi, ExternalLink, Clock, RefreshCw } from 'lucide-react';
+import { Cpu, HardDrive, Database, Wifi, ExternalLink, Clock, RefreshCw, Trash2 } from 'lucide-react';
 
-export default function VMCard({ vm, onSelectVM, onReRegisterVM }) {
+export default function VMCard({ vm, onSelectVM, onReRegisterVM, onPurgeVM }) {
   const status = vm.status || 'ONLINE';
   const isDeregistered = vm.is_deregistered || status === 'DEREGISTERED';
   const cpu = parseFloat(vm.cpu_usage || 0);
@@ -38,7 +38,7 @@ export default function VMCard({ vm, onSelectVM, onReRegisterVM }) {
       justify: 'space-between',
       transition: 'transform 0.2s ease, border-color 0.2s ease',
       cursor: 'pointer',
-      opacity: isDeregistered ? 0.65 : 1
+      opacity: isDeregistered ? 0.75 : 1
     }}
     onClick={() => onSelectVM(vm)}
     onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.4)'}
@@ -136,7 +136,7 @@ export default function VMCard({ vm, onSelectVM, onReRegisterVM }) {
         </div>
       </div>
 
-      {/* Footer Info & Details / Re-register Buttons */}
+      {/* Footer Info & Details / Re-register / Delete Buttons */}
       <div style={{
         marginTop: '1.25rem',
         paddingTop: '0.75rem',
@@ -158,18 +158,33 @@ export default function VMCard({ vm, onSelectVM, onReRegisterVM }) {
 
         <div style={{ display: 'flex', gap: '0.4rem' }}>
           {isDeregistered ? (
-            <button 
-              className="btn-secondary" 
-              style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.4)' }}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onReRegisterVM) onReRegisterVM(vm.vm_id);
-              }}
-              title="Re-register this VM to allow Python agent metrics again"
-            >
-              <RefreshCw size={12} />
-              <span>Re-register</span>
-            </button>
+            <>
+              <button 
+                className="btn-secondary" 
+                style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.4)' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onReRegisterVM) onReRegisterVM(vm.vm_id);
+                }}
+                title="Re-register this VM to allow Python agent metrics again"
+              >
+                <RefreshCw size={12} />
+                <span>Re-register</span>
+              </button>
+
+              <button 
+                className="btn-secondary" 
+                style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onPurgeVM) onPurgeVM(vm.vm_id);
+                }}
+                title="Permanently delete this VM record and metric logs"
+              >
+                <Trash2 size={12} />
+                <span>Delete</span>
+              </button>
+            </>
           ) : (
             <button 
               className="btn-secondary" 

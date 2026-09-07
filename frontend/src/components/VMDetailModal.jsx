@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Cpu, Database, HardDrive, Wifi, Trash2, Clock, Activity, RefreshCw } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
-export default function VMDetailModal({ vm, onClose, onDeleteVM, onReRegisterVM }) {
+export default function VMDetailModal({ vm, onClose, onDeleteVM, onReRegisterVM, onPurgeVM }) {
   const [history, setHistory] = useState([]);
   const [timeRange, setTimeRange] = useState('1h');
   const [loading, setLoading] = useState(true);
@@ -65,17 +65,31 @@ export default function VMDetailModal({ vm, onClose, onDeleteVM, onReRegisterVM 
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             {isDeregistered ? (
-              <button 
-                onClick={() => {
-                  if (onReRegisterVM) onReRegisterVM(vm.vm_id);
-                }}
-                className="btn-secondary"
-                style={{ color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.4)' }}
-                title="Re-register this VM"
-              >
-                <RefreshCw size={16} />
-                <span>Re-register VM</span>
-              </button>
+              <>
+                <button 
+                  onClick={() => {
+                    if (onReRegisterVM) onReRegisterVM(vm.vm_id);
+                  }}
+                  className="btn-secondary"
+                  style={{ color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.4)' }}
+                  title="Re-register this VM"
+                >
+                  <RefreshCw size={16} />
+                  <span>Re-register VM</span>
+                </button>
+
+                <button 
+                  onClick={() => {
+                    if (onPurgeVM) onPurgeVM(vm.vm_id);
+                  }}
+                  className="btn-secondary"
+                  style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                  title="Permanently delete VM and history"
+                >
+                  <Trash2 size={16} />
+                  <span>Delete Permanently</span>
+                </button>
+              </>
             ) : (
               <button 
                 onClick={() => onDeleteVM(vm.vm_id)}

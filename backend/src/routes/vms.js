@@ -146,6 +146,26 @@ router.delete('/', async (req, res) => {
   }
 });
 
+// DELETE /api/vms/:vm_id/purge - Permanently delete a deregistered VM and its history
+router.delete('/:vm_id/purge', async (req, res) => {
+  const { vm_id } = req.params;
+  try {
+    const isPg = getIsPostgresAvailable();
+    if (isPg) {
+      const pool = getPool();
+      await pool.query('DELETE FROM vms WHERE vm_id = $1', [vm_id]);
+    } else {
+      const store = getInMemoryStore();
+      store.vms.delete(vm_id);
+      store.metrics = store.metrics.filter(m => m.vm_id !== vm_id);
+      store.alerts = store.alerts.filter(a => a.vm_id !== vm_id);
+    }
+    return res.json({ success: true, message: `VM '${vm_id}' permanently deleted` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // DELETE /api/vms/:vm_id - Mark VM as DEREGISTERED
 router.delete('/:vm_id', async (req, res) => {
   const { vm_id } = req.params;

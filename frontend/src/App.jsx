@@ -61,6 +61,20 @@ export default function App() {
     }
   };
 
+  const handlePurgeVM = async (vmId) => {
+    if (!confirm(`Are you sure you want to permanently delete VM '${vmId}' and all its metric logs?`)) return;
+    try {
+      const res = await fetch(`/api/vms/${vmId}/purge`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        if (selectedVm && selectedVm.vm_id === vmId) setSelectedVm(null);
+        fetchAllData();
+      }
+    } catch (err) {
+      console.error('Error purging VM:', err);
+    }
+  };
+
   const handleDeleteVM = async (vmId) => {
     if (!confirm(`Are you sure you want to deregister VM '${vmId}'?`)) return;
     try {
@@ -127,7 +141,7 @@ export default function App() {
             <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff' }}>
               {overview?.avgCpuUsage || '0.0'}%
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.1rem' }}> Across active fleet</div>
+            <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.1rem' }}> Across active fleet</div>
           </div>
         </div>
 
@@ -141,7 +155,7 @@ export default function App() {
             <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff' }}>
               {overview?.avgMemoryUsage || '0.0'}%
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.1rem' }}> System RAM consumption</div>
+            <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.1rem' }}> System RAM consumption</div>
           </div>
         </div>
 
@@ -236,7 +250,7 @@ export default function App() {
           ) : (
             <div className="vm-grid">
               {filteredVMs.map(vm => (
-                <VMCard key={vm.vm_id} vm={vm} onSelectVM={(selected) => setSelectedVm(selected)} onReRegisterVM={handleReRegisterVM} />
+                <VMCard key={vm.vm_id} vm={vm} onSelectVM={(selected) => setSelectedVm(selected)} onReRegisterVM={handleReRegisterVM} onPurgeVM={handlePurgeVM} />
               ))}
             </div>
           )}
@@ -255,6 +269,7 @@ export default function App() {
           onClose={() => setSelectedVm(null)} 
           onDeleteVM={handleDeleteVM}
           onReRegisterVM={handleReRegisterVM}
+          onPurgeVM={handlePurgeVM}
         />
       )}
 
