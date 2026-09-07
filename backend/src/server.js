@@ -51,13 +51,14 @@ setInterval(async () => {
         UPDATE vms 
         SET status = 'OFFLINE'
         WHERE last_seen < NOW() - INTERVAL '30 seconds'
-        AND status != 'OFFLINE'
+        AND status NOT IN ('OFFLINE', 'DEREGISTERED')
+        AND is_deregistered = FALSE
       `);
     } else {
       const store = getInMemoryStore();
       const cutoff = Date.now() - 30000;
       store.vms.forEach(vm => {
-        if (new Date(vm.last_seen).getTime() < cutoff && vm.status !== 'OFFLINE') {
+        if (!vm.is_deregistered && vm.status !== 'DEREGISTERED' && new Date(vm.last_seen).getTime() < cutoff) {
           vm.status = 'OFFLINE';
         }
       });
@@ -65,7 +66,7 @@ setInterval(async () => {
   } catch (err) {
     console.error('Error in offline VM check background worker:', err.message);
   }
-}, 10000);
+}, 5000);
 
 // Initialize DB and launch server
 async function startServer() {

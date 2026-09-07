@@ -188,7 +188,16 @@ router.get('/overview', async (req, res) => {
 
     if (isPg) {
       const pool = getPool();
-      const vmsRes = await pool.query('SELECT status FROM vms');
+      // Update stale VMs to OFFLINE if no heartbeat in 30s
+      await pool.query(`
+        UPDATE vms 
+        SET status = 'OFFLINE' 
+        WHERE last_seen < NOW() - INTERVAL '30 seconds' 
+        AND status NOT IN ('OFFLINE', 'DEREGISTERED') 
+        AND is_deregistered = FALSE
+      `);
+
+      const vmsRes = await pool.query('SELECT status, is_deregistered FROM vms');
       const alertsRes = await pool.query(`SELECT COUNT(*) FROM alerts WHERE status = 'ACTIVE'`);
       const avgMetricsRes = await pool.query(`
         SELECT 
@@ -196,18 +205,22 @@ router.get('/overview', async (req, res) => {
           AVG(memory_usage) as avg_memory,
           AVG(disk_usage) as avg_disk
         FROM (
-          SELECT DISTINCT ON (vm_id) cpu_usage, memory_usage, disk_usage
-          FROM metrics
-          ORDER BY vm_id, recorded_at DESC
+          SELECT DISTINCT ON (m.vm_id) m.cpu_usage, m.memory_usage, m.disk_usage
+          FROM metrics m
+          JOIN vms v ON m.vm_id = v.vm_id
+          WHERE v.is_deregistered = FALSE AND v.status != 'DEREGISTERED'
+          ORDER BY m.vm_id, m.recorded_at DESC
         ) latest
       `);
 
       const vms = vmsRes.rows;
-      const total = vms.length;
-      const online = vms.filter(v => v.status === 'ONLINE').length;
-      const warning = vms.filter(v => v.status === 'WARNING').length;
-      const critical = vms.filter(v => v.status === 'CRITICAL').length;
-      const offline = vms.filter(v => v.status === 'OFFLINE').length;
+      const activeVMs = vms.filter(v => !v.is_deregistered && v.status !== 'DEREGISTERED');
+      const total = activeVMs.length;
+      const online = activeVMs.filter(v => v.status === 'ONLINE').length;
+      const warning = activeVMs.filter(v => v.status === 'WARNING').length;
+      const critical = activeVMs.filter(v => v.status === 'CRITICAL').length;
+      const offline = activeVMs.filter(v => v.status === 'OFFLINE').length;
+      const deregisteredCount = vms.filter(v => v.is_deregistered || v.status === 'DEREGISTERED').length;
 
       const avg = avgMetricsRes.rows[0] || {};
 
@@ -219,6 +232,7 @@ router.get('/overview', async (req, res) => {
           warningVMs: warning,
           criticalVMs: critical,
           offlineVMs: offline,
+          deregisteredVMs: deregisteredCount,
           activeAlerts: parseInt(alertsRes.rows[0].count, 10),
           avgCpuUsage: parseFloat(avg.avg_cpu || 0).toFixed(1),
           avgMemoryUsage: parseFloat(avg.avg_memory || 0).toFixed(1),
@@ -227,18 +241,20 @@ router.get('/overview', async (req, res) => {
       });
     } else {
       const store = getInMemoryStore();
-      const vms = Array.from(store.vms.values());
-      const total = vms.length;
-      const online = vms.filter(v => v.status === 'ONLINE').length;
-      const warning = vms.filter(v => v.status === 'WARNING').length;
-      const critical = vms.filter(v => v.status === 'CRITICAL').length;
-      const offline = vms.filter(v => v.status === 'OFFLINE').length;
+      const allVms = Array.from(store.vms.values());
+      const activeVMs = allVms.filter(v => !v.is_deregistered && v.status !== 'DEREGISTERED');
+      const total = activeVMs.length;
+      const online = activeVMs.filter(v => v.status === 'ONLINE').length;
+      const warning = activeVMs.filter(v => v.status === 'WARNING').length;
+      const critical = activeVMs.filter(v => v.status === 'CRITICAL').length;
+      const offline = activeVMs.filter(v => v.status === 'OFFLINE').length;
+      const deregisteredCount = allVms.filter(v => v.is_deregistered || v.status === 'DEREGISTERED').length;
 
       const activeAlerts = store.alerts.filter(a => a.status === 'ACTIVE').length;
 
-      // Compute averages from latest metric per VM
+      // Compute averages from latest metric per active VM
       let totalCpu = 0, totalMem = 0, totalDisk = 0, count = 0;
-      vms.forEach(vm => {
+      activeVMs.forEach(vm => {
         const vmMetrics = store.metrics.filter(m => m.vm_id === vm.vm_id);
         const last = vmMetrics[vmMetrics.length - 1];
         if (last) {
@@ -257,6 +273,7 @@ router.get('/overview', async (req, res) => {
           warningVMs: warning,
           criticalVMs: critical,
           offlineVMs: offline,
+          deregisteredVMs: deregisteredCount,
           activeAlerts,
           avgCpuUsage: count ? (totalCpu / count).toFixed(1) : '0.0',
           avgMemoryUsage: count ? (totalMem / count).toFixed(1) : '0.0',

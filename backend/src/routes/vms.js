@@ -9,6 +9,15 @@ router.get('/', async (req, res) => {
 
     if (isPg) {
       const pool = getPool();
+      // Update stale VMs to OFFLINE if no heartbeat in 30s
+      await pool.query(`
+        UPDATE vms 
+        SET status = 'OFFLINE' 
+        WHERE last_seen < NOW() - INTERVAL '30 seconds' 
+        AND status NOT IN ('OFFLINE', 'DEREGISTERED') 
+        AND is_deregistered = FALSE
+      `);
+
       const query = `
         SELECT 
           v.id,
@@ -17,6 +26,7 @@ router.get('/', async (req, res) => {
           v.ip_address,
           v.os_info,
           v.status,
+          v.is_deregistered,
           v.last_seen,
           v.created_at,
           m.cpu_usage,
