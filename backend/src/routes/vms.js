@@ -160,6 +160,10 @@ router.delete('/', async (req, res) => {
 router.delete('/:vm_id/purge', async (req, res) => {
   const { vm_id } = req.params;
   try {
+    const deregistered = getDeregisteredVms();
+    deregistered.delete(vm_id);
+    deregistered.delete('*');
+
     const isPg = getIsPostgresAvailable();
     if (isPg) {
       const pool = getPool();

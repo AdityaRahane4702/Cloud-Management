@@ -5,6 +5,7 @@ Collects real system resource utilization (CPU, RAM, Disk, Network)
 and posts metrics to the backend monitoring REST API.
 """
 
+import os
 import sys
 import time
 import socket
@@ -43,8 +44,9 @@ def collect_metrics(vm_id, hostname, os_info, prev_net_counters):
     memory_used_mb = round(mem.used / (1024 * 1024), 2)
     memory_total_mb = round(mem.total / (1024 * 1024), 2)
 
-    # 3. Disk Usage
-    disk = psutil.disk_usage('/')
+    # 3. Disk Usage (tracks user Data volume on macOS, root / on Linux)
+    disk_path = '/System/Volumes/Data' if os.path.exists('/System/Volumes/Data') else '/'
+    disk = psutil.disk_usage(disk_path)
     disk_usage = disk.percent
     disk_used_gb = round(disk.used / (1024 * 1024 * 1024), 2)
     disk_total_gb = round(disk.total / (1024 * 1024 * 1024), 2)
@@ -94,6 +96,15 @@ def main():
     logging.info(f"Hostname      : {args.hostname}")
     logging.info(f"OS System     : {os_info}")
     logging.info(f"Interval      : {args.interval}s")
+
+    # Register/re-register VM with the backend server upon launch
+    register_url = f"{args.server.rstrip('/')}/api/vms/{vm_id}/register"
+    try:
+        reg_response = requests.post(register_url, timeout=5)
+        if reg_response.status_code in (200, 201):
+            logging.info(f"Registered VM '{vm_id}' with central dashboard.")
+    except Exception as e:
+        logging.debug(f"Initial registration note: {e}")
 
     prev_net = psutil.net_io_counters()
 

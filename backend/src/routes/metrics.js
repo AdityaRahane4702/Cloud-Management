@@ -61,13 +61,14 @@ router.post('/', async (req, res) => {
       const pool = getPool();
       // 1. Upsert VM registration
       await pool.query(
-        `INSERT INTO vms (vm_id, hostname, ip_address, os_info, last_seen, is_deregistered)
-         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, FALSE)
+        `INSERT INTO vms (vm_id, hostname, ip_address, os_info, last_seen, is_deregistered, status)
+         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, FALSE, 'ONLINE')
          ON CONFLICT (vm_id) DO UPDATE 
          SET hostname = EXCLUDED.hostname,
              ip_address = EXCLUDED.ip_address,
              os_info = EXCLUDED.os_info,
              is_deregistered = FALSE,
+             status = CASE WHEN vms.status = 'DEREGISTERED' THEN 'ONLINE' ELSE vms.status END,
              last_seen = CURRENT_TIMESTAMP`,
         [metricPayload.vm_id, metricPayload.hostname, metricPayload.ip_address, metricPayload.os_info]
       );
@@ -104,6 +105,7 @@ router.post('/', async (req, res) => {
           ip_address: metricPayload.ip_address,
           os_info: metricPayload.os_info,
           status: 'ONLINE',
+          is_deregistered: false,
           last_seen: metricPayload.recorded_at.toISOString(),
           created_at: metricPayload.recorded_at.toISOString()
         });
@@ -112,6 +114,10 @@ router.post('/', async (req, res) => {
         vm.hostname = metricPayload.hostname;
         vm.ip_address = metricPayload.ip_address;
         vm.os_info = metricPayload.os_info;
+        vm.is_deregistered = false;
+        if (vm.status === 'DEREGISTERED') {
+          vm.status = 'ONLINE';
+        }
         vm.last_seen = metricPayload.recorded_at.toISOString();
       }
 
@@ -203,9 +209,14 @@ router.get('/overview', async (req, res) => {
         SELECT 
           AVG(cpu_usage) as avg_cpu,
           AVG(memory_usage) as avg_memory,
-          AVG(disk_usage) as avg_disk
+          AVG(disk_usage) as avg_disk,
+          SUM(memory_used_mb) as total_ram_used_mb,
+          SUM(memory_total_mb) as total_ram_total_mb,
+          SUM(disk_used_gb) as total_disk_used_gb,
+          SUM(disk_total_gb) as total_disk_total_gb
         FROM (
-          SELECT DISTINCT ON (m.vm_id) m.cpu_usage, m.memory_usage, m.disk_usage
+          SELECT DISTINCT ON (m.vm_id) m.cpu_usage, m.memory_usage, m.disk_usage,
+            m.memory_used_mb, m.memory_total_mb, m.disk_used_gb, m.disk_total_gb
           FROM metrics m
           JOIN vms v ON m.vm_id = v.vm_id
           WHERE v.is_deregistered = FALSE AND v.status != 'DEREGISTERED'
@@ -236,7 +247,11 @@ router.get('/overview', async (req, res) => {
           activeAlerts: parseInt(alertsRes.rows[0].count, 10),
           avgCpuUsage: parseFloat(avg.avg_cpu || 0).toFixed(1),
           avgMemoryUsage: parseFloat(avg.avg_memory || 0).toFixed(1),
-          avgDiskUsage: parseFloat(avg.avg_disk || 0).toFixed(1)
+          avgDiskUsage: parseFloat(avg.avg_disk || 0).toFixed(1),
+          totalRamUsedMb: parseFloat(avg.total_ram_used_mb || 0).toFixed(0),
+          totalRamTotalMb: parseFloat(avg.total_ram_total_mb || 0).toFixed(0),
+          totalDiskUsedGb: parseFloat(avg.total_disk_used_gb || 0).toFixed(1),
+          totalDiskTotalGb: parseFloat(avg.total_disk_total_gb || 0).toFixed(1)
         }
       });
     } else {
@@ -254,6 +269,7 @@ router.get('/overview', async (req, res) => {
 
       // Compute averages from latest metric per active VM
       let totalCpu = 0, totalMem = 0, totalDisk = 0, count = 0;
+      let totalRamUsed = 0, totalRamTotal = 0, totalDiskUsed = 0, totalDiskTotal = 0;
       activeVMs.forEach(vm => {
         const vmMetrics = store.metrics.filter(m => m.vm_id === vm.vm_id);
         const last = vmMetrics[vmMetrics.length - 1];
@@ -261,6 +277,10 @@ router.get('/overview', async (req, res) => {
           totalCpu += parseFloat(last.cpu_usage);
           totalMem += parseFloat(last.memory_usage);
           totalDisk += parseFloat(last.disk_usage);
+          totalRamUsed += parseFloat(last.memory_used_mb || 0);
+          totalRamTotal += parseFloat(last.memory_total_mb || 0);
+          totalDiskUsed += parseFloat(last.disk_used_gb || 0);
+          totalDiskTotal += parseFloat(last.disk_total_gb || 0);
           count++;
         }
       });
@@ -277,7 +297,11 @@ router.get('/overview', async (req, res) => {
           activeAlerts,
           avgCpuUsage: count ? (totalCpu / count).toFixed(1) : '0.0',
           avgMemoryUsage: count ? (totalMem / count).toFixed(1) : '0.0',
-          avgDiskUsage: count ? (totalDisk / count).toFixed(1) : '0.0'
+          avgDiskUsage: count ? (totalDisk / count).toFixed(1) : '0.0',
+          totalRamUsedMb: totalRamUsed.toFixed(0),
+          totalRamTotalMb: totalRamTotal.toFixed(0),
+          totalDiskUsedGb: totalDiskUsed.toFixed(1),
+          totalDiskTotalGb: totalDiskTotal.toFixed(1)
         }
       });
     }

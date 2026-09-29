@@ -5,6 +5,13 @@ import VMDetailModal from './components/VMDetailModal';
 import AlertsPanel from './components/AlertsPanel';
 import { Server, Activity, ShieldAlert, Cpu, Database, HardDrive, Search, Filter, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
+// Format MB into GB if >= 1024, else show MB
+function fmtMB(mb) {
+  const n = parseFloat(mb || 0);
+  if (n >= 1024) return `${(n / 1024).toFixed(1)} GB`;
+  return `${n.toFixed(0)} MB`;
+}
+
 export default function App() {
   const [vms, setVms] = useState([]);
   const [overview, setOverview] = useState(null);
@@ -137,25 +144,43 @@ export default function App() {
             <Cpu size={24} />
           </div>
           <div>
-            <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Avg CPU Utilization</div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Avg CPU Usage</div>
             <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff' }}>
               {overview?.avgCpuUsage || '0.0'}%
             </div>
-            <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.1rem' }}> Across active fleet</div>
+            <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.1rem' }}>Across active fleet</div>
           </div>
         </div>
 
-        {/* Avg Memory */}
+        {/* Total RAM */}
         <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', padding: '0.75rem', borderRadius: '12px' }}>
             <Database size={24} />
           </div>
           <div>
-            <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Avg Memory (RAM)</div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Total RAM Used</div>
             <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff' }}>
-              {overview?.avgMemoryUsage || '0.0'}%
+              {fmtMB(overview?.totalRamUsedMb)}
             </div>
-            <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.1rem' }}> System RAM consumption</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+              of {fmtMB(overview?.totalRamTotalMb)} total ({overview?.avgMemoryUsage || '0.0'}% avg)
+            </div>
+          </div>
+        </div>
+
+        {/* Total Storage */}
+        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '0.75rem', borderRadius: '12px' }}>
+            <HardDrive size={24} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Total Storage Used</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff' }}>
+              {parseFloat(overview?.totalDiskUsedGb || 0).toFixed(1)} GB
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+              of {parseFloat(overview?.totalDiskTotalGb || 0).toFixed(1)} GB total ({overview?.avgDiskUsage || '0.0'}% avg)
+            </div>
           </div>
         </div>
 
