@@ -17,16 +17,18 @@ export default function VMCard({ vm, onSelectVM, onReRegisterVM, onPurgeVM }) {
 
   const formatUptime = (seconds) => {
     if (!seconds) return 'N/A';
-    const hrs = Math.floor(seconds / 3600);
+    const d = Math.floor(seconds / 86400);
+    const hrs = Math.floor((seconds % 86400) / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
+    if (d > 0) return `${d}d ${hrs}h`;
     return `${hrs}h ${mins}m`;
   };
 
   const formatBytes = (bytes) => {
-    if (!bytes) return '0 B';
+    if (!bytes || bytes === 0) return '0 B';
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.min(Math.floor(Math.log(Math.max(bytes, 1)) / Math.log(k)), sizes.length - 1);
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
