@@ -41,6 +41,18 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Serve frontend static build if available
+const path = require('path');
+const fs = require('fs');
+const distPath = path.join(__dirname, '../../frontend/dist');
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  app.get('*', (req, res, next) => {
+    if (req.originalUrl.startsWith('/api')) return next();
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
+
 // Background worker to check for offline VMs (no heartbeat in 30 seconds)
 setInterval(async () => {
   try {
