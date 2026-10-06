@@ -110,14 +110,12 @@ router.post('/rules', async (req, res) => {
         await pool.query(
           `INSERT INTO alert_rules (metric_name, warning_threshold, critical_threshold, enabled)
            VALUES ($1, $2, $3, $4)
-           ON CONFLICT DO NOTHING`,
+           ON CONFLICT (metric_name) 
+           DO UPDATE SET 
+             warning_threshold = EXCLUDED.warning_threshold,
+             critical_threshold = EXCLUDED.critical_threshold,
+             enabled = EXCLUDED.enabled`,
           [rule.metric_name, rule.warning_threshold, rule.critical_threshold, rule.enabled ?? true]
-        );
-        await pool.query(
-          `UPDATE alert_rules 
-           SET warning_threshold = $1, critical_threshold = $2, enabled = $3
-           WHERE metric_name = $4`,
-          [rule.warning_threshold, rule.critical_threshold, rule.enabled ?? true, rule.metric_name]
         );
       }
       const updated = await pool.query(`SELECT * FROM alert_rules ORDER BY id ASC`);

@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS metrics (
 -- Table 3: Alert Rules Configuration
 CREATE TABLE IF NOT EXISTS alert_rules (
     id SERIAL PRIMARY KEY,
-    metric_name VARCHAR(32) NOT NULL, -- cpu, memory, disk
+    metric_name VARCHAR(32) UNIQUE NOT NULL, -- cpu, memory, disk
     warning_threshold NUMERIC(5, 2) NOT NULL, -- e.g. 75.0
     critical_threshold NUMERIC(5, 2) NOT NULL, -- e.g. 90.0
     enabled BOOLEAN DEFAULT TRUE,
