@@ -3,12 +3,15 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
+const isRemoteHost = process.env.PGHOST && !['127.0.0.1', 'localhost'].includes(process.env.PGHOST);
+
 const dbConfig = {
   user: process.env.PGUSER || process.env.USER || 'postgres',
   host: process.env.PGHOST || '127.0.0.1',
   port: parseInt(process.env.PGPORT || '5432', 10),
   database: process.env.PGDATABASE || 'vm_monitoring',
   password: process.env.PGPASSWORD || '',
+  ssl: process.env.PGSSL === 'true' || isRemoteHost ? { rejectUnauthorized: false } : false,
 };
 
 let pool = null;
@@ -27,6 +30,8 @@ const inMemoryStore = {
 };
 
 async function ensureDatabaseExists() {
+  if (dbConfig.database === 'postgres') return;
+
   const rootPool = new Pool({
     ...dbConfig,
     database: 'postgres'
