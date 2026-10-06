@@ -44,8 +44,13 @@ def collect_metrics(vm_id, hostname, os_info, prev_net_counters):
     memory_used_mb = round(mem.used / (1024 * 1024), 2)
     memory_total_mb = round(mem.total / (1024 * 1024), 2)
 
-    # 3. Disk Usage (tracks user Data volume on macOS, root / on Linux)
-    disk_path = '/System/Volumes/Data' if os.path.exists('/System/Volumes/Data') else '/'
+    # 3. Disk Usage (tracks user Data volume on macOS, root / on Linux, SystemDrive on Windows)
+    if platform.system() == 'Windows':
+        disk_path = os.environ.get('SystemDrive', 'C:') + '\\'
+    elif os.path.exists('/System/Volumes/Data'):
+        disk_path = '/System/Volumes/Data'
+    else:
+        disk_path = '/'
     disk = psutil.disk_usage(disk_path)
     disk_usage = disk.percent
     disk_used_gb = round(disk.used / (1024 * 1024 * 1024), 2)
@@ -108,28 +113,33 @@ def main():
 
     prev_net = psutil.net_io_counters()
 
-    while True:
-        try:
-            payload, prev_net = collect_metrics(vm_id, args.hostname, os_info, prev_net)
-            
-            response = requests.post(server_url, json=payload, timeout=5)
-            if response.status_code == 410 or (response.headers.get('content-type', '').startswith('application/json') and response.json().get('deregistered')):
-                logging.critical(f"⛔ VM '{vm_id}' was deregistered by central dashboard administrator. Terminating agent process.")
-                sys.exit(0)
-            elif response.status_code in (200, 201):
-                logging.info(
-                    f"Metrics sent | CPU: {payload['cpu_usage']}% | RAM: {payload['memory_usage']}% | "
-                    f"Disk: {payload['disk_usage']}% | Uptime: {payload['uptime_seconds']}s"
-                )
-            else:
-                logging.warning(f"Server returned status {response.status_code}: {response.text}")
+    try:
+        while True:
+            try:
+                payload, prev_net = collect_metrics(vm_id, args.hostname, os_info, prev_net)
+                
+                response = requests.post(server_url, json=payload, timeout=5)
+                if response.status_code == 410 or (response.headers.get('content-type', '').startswith('application/json') and response.json().get('deregistered')):
+                    logging.critical(f"⛔ VM '{vm_id}' was deregistered by central dashboard administrator. Terminating agent process.")
+                    sys.exit(0)
+                elif response.status_code in (200, 201):
+                    logging.info(
+                        f"Metrics sent | CPU: {payload['cpu_usage']}% | RAM: {payload['memory_usage']}% | "
+                        f"Disk: {payload['disk_usage']}% | Uptime: {payload['uptime_seconds']}s"
+                    )
+                else:
+                    logging.warning(f"Server returned status {response.status_code}: {response.text}")
 
-        except requests.exceptions.ConnectionError:
-            logging.error(f"Failed to connect to Monitoring Server at {server_url}. Retrying in {args.interval}s...")
-        except Exception as e:
-            logging.error(f"Unexpected error in monitoring agent loop: {e}")
+            except requests.exceptions.RequestException as e:
+                logging.error(f"Connection issue with Monitoring Server at {server_url} ({e.__class__.__name__}). Retrying in {args.interval}s...")
+            except Exception as e:
+                logging.error(f"Unexpected error in monitoring agent loop: {e}")
 
-        time.sleep(max(1, args.interval - 1)) # Account for 1s sample time inside collect_metrics
+            time.sleep(max(1, args.interval - 1)) # Account for 1s sample time inside collect_metrics
+
+    except KeyboardInterrupt:
+        logging.info("Agent process stopped by user (Ctrl+C). Exiting cleanly.")
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
